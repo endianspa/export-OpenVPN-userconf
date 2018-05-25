@@ -26,7 +26,7 @@
 
 import yaml
 import sys
-import os.presoath
+import os.path
 from endian.job.commons import DataSource
 
 
@@ -68,8 +68,7 @@ def get_vpn_users():
         user_id = -1
         while user_id < 0 or user_id > len(user_list):
             try:
-                user_id = int(raw_input("Select the ID of the \
-                                        user from the above list: "))
+                user_id = int(raw_input("Select the ID of the user from the above list: "))
             except ValueError:
                 print "Wrong value selected"
         print """\ndownload the certificate from
