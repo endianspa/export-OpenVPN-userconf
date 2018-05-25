@@ -26,7 +26,7 @@
 
 import yaml
 import sys
-import os.path
+import os.presoath
 from endian.job.commons import DataSource
 
 
@@ -37,7 +37,9 @@ ca_cert = vpn_ca_folder+DataSource('openvpn').settings.CA_FILENAME
 green_ip = DataSource('ethernet').settings.green_address
 conf_to_print = {}
 static_param = ['client', 'nobind', 'persist-key', 'persist-tun',
-                'verb 2', 'ns-cert-type server', 'comp-lzo']
+                'verb 2', 'ns-cert-type server', 'comp-lzo' ,
+                'resolv-retry-infinite'
+               ]
 auth_type_human_readable = {'psk': 'PSK',
                             'cert': 'Certificate',
                             'psk_cert': 'Certificate & PSK'}
