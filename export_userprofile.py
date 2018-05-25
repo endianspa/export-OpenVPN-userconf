@@ -31,6 +31,8 @@ from endian.job.commons import DataSource
 
 
 is_bridged = False
+vpn_users_file = '/var/efw/access/user'
+vpn_server_conf = '/var/efw/openvpn/server'
 vpn_ca_folder = '/var/efw/vpn/ca/cacerts/'
 vpn_cert_folder = '/var/efw/vpn/ca/certs/'
 ca_cert = vpn_ca_folder+DataSource('openvpn').settings.CA_FILENAME
@@ -49,7 +51,7 @@ def get_vpn_users():
     user_list = []
     cont = 0
     try:
-        with open("/var/efw/access/user", "r") as f:
+        with open(vpn_users_file, "r") as f:
             users = yaml.load_all(f.read())
     except IOError:
         print 'user file not found'
@@ -100,11 +102,10 @@ def get_auth_type(inst_id):
 def print_server_instance_conf():
     if DataSource('openvpn').settings.OPENVPN_ENABLED == 'on':
         try:
-            with open("/var/efw/openvpn/server", "r") as f:
+            with open(vpn_server_conf, "r") as f:
                 servers = yaml.load_all(f.read())
         except IOError:
-            print 'Vpn configration file not found, \
-                    check if OpenVPN Server is enabled'
+            print 'VPN configration file not found,check if OpenVPN Server is enabled'
             sys.exit()
         server = {}
         for srv in servers:
