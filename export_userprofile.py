@@ -28,6 +28,7 @@ import yaml
 import sys
 import os.path
 from endian.job.commons import DataSource
+from ipaddress import ip_address
 
 
 is_bridged = False
@@ -45,6 +46,20 @@ static_param = ['client', 'nobind', 'persist-key', 'persist-tun',
 auth_type_human_readable = {'psk': 'PSK',
                             'cert': 'Certificate',
                             'psk_cert': 'Certificate & PSK'}
+
+
+def is_private_ip(IP):
+    if ip_address(unicode(IP)).is_private:
+        from subprocess import check_output
+        from shlex import split
+        DIG='dig +short +time=3 +tries=1 myip.opendns.com @resolver1.opendns.com'
+        try:
+            process = check_output(split(DIG))
+        except subprocess.CalledProcessError as grepexc:
+            process = "error code", grepexc.returncode, grepexc.output
+    else:
+        process = DataSource('uplinks').main.data.IP_ADDRESS
+    return process
 
 
 def get_vpn_users():
@@ -119,7 +134,7 @@ def print_server_instance_conf():
                         print "Listening on: {}:{}".format(data['openvpn_bind_address'], data['openvpn_port'])
                     else:
                         print "Listening on: *:{}".format(data['openvpn_port'])
-                    print "Protocol :{}".format(data['openvpn_protocol'])
+                    print "Protocol : {}".format(data['openvpn_protocol'])
                     if data['bridged'] is True:
                         print "Network : bridged - {}".format(data['bridge_to'])
                     else:
@@ -156,7 +171,8 @@ def generate_conf(srv):
     if srv[instance_id]['openvpn_bind_address']:
         conf_to_print['remote'] = srv[instance_id]['openvpn_bind_address']
     else:
-        conf_to_print['remote'] = DataSource('uplinks').main.data.IP_ADDRESS
+        red_ip = is_private_ip(DataSource('uplinks').main.data.IP_ADDRESS)
+        conf_to_print['remote'] = red_ip
     conf_to_print['port'] = srv[instance_id]['openvpn_port']
     if srv[instance_id]['reneg_sec'] and srv[instance_id]['reneg_sec'] != '3600':
         conf_to_print['reneg-sec'] = srv[instance_id]['reneg_sec']
