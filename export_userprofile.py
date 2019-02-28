@@ -23,12 +23,15 @@
 # | with this program; if not, write to the Free Software Foundation, Inc.,  |
 # | 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.              |
 # +--------------------------------------------------------------------------+
+__author__ = "Luca Radaelli"
 
 import yaml
-import sys
+from sys import exit
 import os.path
 from endian.job.commons import DataSource
 from ipaddress import ip_address
+from subprocess import check_output
+from shlex import split
 
 
 is_bridged = False
@@ -41,8 +44,7 @@ green_ip = DataSource('ethernet').settings.green_address
 conf_to_print = {}
 static_param = ['client', 'nobind', 'persist-key', 'persist-tun',
                 'verb 2', 'ns-cert-type server', 'comp-lzo' ,
-                'resolv-retry infinite'
-               ]
+                'resolv-retry infinite']
 auth_type_human_readable = {'psk': 'PSK',
                             'cert': 'Certificate',
                             'psk_cert': 'Certificate & PSK'}
@@ -50,8 +52,6 @@ auth_type_human_readable = {'psk': 'PSK',
 
 def is_private_ip(IP):
     if ip_address(unicode(IP)).is_private:
-        from subprocess import check_output
-        from shlex import split
         DIG='dig +short +time=3 +tries=1 myip.opendns.com @resolver1.opendns.com'
         try:
             process = check_output(split(DIG))
@@ -59,7 +59,7 @@ def is_private_ip(IP):
             process = "error code", grepexc.returncode, grepexc.output
     else:
         process = DataSource('uplinks').main.data.IP_ADDRESS
-    return process
+    return process.rstrip()
 
 
 def get_vpn_users():
@@ -70,7 +70,7 @@ def get_vpn_users():
             users = yaml.load_all(f.read())
     except IOError:
         print 'user file not found'
-        sys.exit()
+        exit(1)
     for user in users:
         for index, value in user.items():
             """print only enabled users with valid certificate associated"""
@@ -80,17 +80,21 @@ def get_vpn_users():
                 user_list.append(value['name'])
     if len(user_list) == 0:
         print "No user Certificates found"
-        sys.exit(1)
-    else:
-        user_id = -1
-        while user_id < 0 or user_id > len(user_list):
-            try:
-                user_id = int(raw_input("Select the ID of the user from the above list: "))
-            except ValueError:
-                print "Wrong value selected"
-        print """\ndownload the certificate from
-                \rhttps://{}:10443/manage/ca/certificate/p12?ID={}cert.pem
-                \rand send it to the user\n""".format(green_ip, user_list[user_id-1])
+        exit(1)
+    return user_list
+
+
+def get_user_cert():
+    user_list = get_vpn_users()
+    user_id = -1
+    while user_id < 0 or user_id > len(user_list):
+        try:
+            user_id = int(raw_input("Select the ID of the user from the above list: "))
+        except ValueError:
+            print "Wrong value selected"
+    print """\ndownload the certificate from
+            \rhttps://{}:10443/manage/ca/certificate/p12?ID={}cert.pem
+            \rand send it to the user\n""".format(green_ip, user_list[user_id-1])
     return user_list[user_id-1]
 
 
@@ -106,11 +110,11 @@ def get_auth_type(inst_id):
             print fin.read(),
             print "</ca>"
     elif cmd_auth == 'cert':
-        user_id = get_vpn_users()
+        user_id = get_user_cert()
         conf_to_print['cert'] = "{}cert.p12".format(user_id)
     elif cmd_auth == 'psk_cert':
         conf_to_print['authentication'] = 'auth-user-pass'
-        user_id = get_vpn_users()
+        user_id = get_user_cert()
         conf_to_print['cert'] = "{}cert.p12".format(user_id)
 
 
@@ -121,7 +125,7 @@ def print_server_instance_conf():
                 servers = yaml.load_all(f.read())
         except IOError:
             print 'VPN configration file not found,check if OpenVPN Server is enabled'
-            sys.exit()
+            exit(1)
         server = {}
         for srv in servers:
             for srv_id, data in srv.items():
@@ -151,10 +155,10 @@ def print_server_instance_conf():
             return server
         else:
             print 'No OpenVPN instance enabled'
-            sys.exit()
+            exit(1)
     else:
         print 'OpenVPN service not enabled'
-        sys.exit()
+        exit(1)
 
 
 def generate_conf(srv):
@@ -164,7 +168,7 @@ def generate_conf(srv):
             instance_id = int(raw_input("Select the instance ID "))
         except ValueError:
             print "select the correct value"
-    print "exporting client configration...\n"
+    print "\nexporting client configuration, copy the output below\n"
     get_auth_type(srv[instance_id])
     conf_to_print['dev'] = srv[instance_id]['device_type']
     conf_to_print['proto'] = srv[instance_id]['openvpn_protocol']
@@ -176,12 +180,16 @@ def generate_conf(srv):
     conf_to_print['port'] = srv[instance_id]['openvpn_port']
     if srv[instance_id]['reneg_sec'] and srv[instance_id]['reneg_sec'] != '3600':
         conf_to_print['reneg-sec'] = srv[instance_id]['reneg_sec']
-    if srv[instance_id]['digest']:
+    if srv[instance_id]['digest'] and not srv[instance_id]['disable_encryption']:
         conf_to_print['auth'] = srv[instance_id]['digest']
-    if srv[instance_id]['cipher']:
+    elif srv[instance_id]['disable_encryption']:
+        conf_to_print['auth'] = 'none'
+    if srv[instance_id]['cipher'] and not srv[instance_id]['disable_encryption']:
         conf_to_print['cipher'] = srv[instance_id]['cipher']
-    for v in static_param:
-        print v
+    elif  srv[instance_id]['disable_encryption']:
+        conf_to_print['cipher'] =  'none'
+    for param in static_param:
+        print param
     for k, v in conf_to_print.iteritems():
         if k == 'authentication':
             print v
