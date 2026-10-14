@@ -1,6 +1,12 @@
 # export-OpenVPN-userconf
 Export a .ovpn configuration file
 
+For modern Endian versions that use Python 3, use `export_userprofile_py3.py` instead of the original script. It requires Python 3.8 or later and PyYAML:
+
+`python3 export_userprofile_py3.py --remote <VPN_PUBLIC_IP_OR_DNS>`
+
+The original script remains unchanged. Its usage is shown below.
+
 Copy the script on you Endian Appliance with scp (check Endian KB for this) and run it with
 
 `python export_userprofile.py`
